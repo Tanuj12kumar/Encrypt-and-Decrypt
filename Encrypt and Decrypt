@@ -1,0 +1,101 @@
+        #region Encypt Method
+
+        public static string Encrypt(this string text, string key)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                throw new ArgumentException("Key must have valid value.", "key");
+            }
+
+            if (string.IsNullOrEmpty(text))
+            {
+                throw new ArgumentException("The text must have valid value.", "text");
+            }
+
+            byte[] bytes = Encoding.UTF8.GetBytes(text);
+            SHA512CryptoServiceProvider sHA512CryptoServiceProvider = new SHA512CryptoServiceProvider();
+            byte[] array = new byte[24];
+            Buffer.BlockCopy(sHA512CryptoServiceProvider.ComputeHash(Encoding.UTF8.GetBytes(key)), 0, array, 0, 24);
+            using (Aes aes = Aes.Create())
+            {
+                if (aes == null)
+                {
+                    throw new ArgumentException("Parameter must not be null.", "aes");
+                }
+
+                aes.Key = array;
+                using (ICryptoTransform transform = aes.CreateEncryptor(aes.Key, aes.IV))
+                {
+                    using (MemoryStream memoryStream = new MemoryStream())
+                    {
+                        using (CryptoStream destination = new CryptoStream(memoryStream, transform, CryptoStreamMode.Write))
+                        {
+                            using (MemoryStream memoryStream2 = new MemoryStream(bytes))
+                            {
+                                memoryStream2.CopyTo(destination);
+                            }
+                        }
+
+                        byte[] array2 = memoryStream.ToArray();
+                        byte[] array3 = new byte[aes.IV.Length + array2.Length];
+                        Array.ConstrainedCopy(aes.IV, 0, array3, 0, aes.IV.Length);
+                        Array.ConstrainedCopy(array2, 0, array3, aes.IV.Length, array2.Length);
+                        return Convert.ToBase64String(array3);
+                    }
+                }
+            }
+        }
+
+        #endregion
+
+        #region Decrypt Method
+        public static string Decrypt(this string encryptedText, string key)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                throw new ArgumentException("Key must have valid value.", "key");
+            }
+
+            if (string.IsNullOrEmpty(encryptedText))
+            {
+                throw new ArgumentException("The encrypted text must have valid value.", "encryptedText");
+            }
+
+            byte[] array = Convert.FromBase64String(encryptedText);
+            //byte[]
+            byte[] array2 = new byte[array.Length];
+            SHA512CryptoServiceProvider sHA512CryptoServiceProvider = new SHA512CryptoServiceProvider();
+            byte[] array3 = new byte[24];
+            Buffer.BlockCopy(sHA512CryptoServiceProvider.ComputeHash(Encoding.UTF8.GetBytes(key)), 0, array3, 0, 24);
+            using (Aes aes = Aes.Create())
+            {
+                if (aes == null)
+                {
+                    throw new ArgumentException("Parameter must not be null.", "aes");
+                }
+
+                aes.Key = array3;
+                byte[] array4 = new byte[aes.IV.Length];
+                byte[] array5 = new byte[array2.Length - array4.Length];
+                Array.ConstrainedCopy(array, 0, array4, 0, array4.Length);
+                Array.ConstrainedCopy(array, array4.Length, array5, 0, array5.Length);
+                aes.IV = array4;
+                using (ICryptoTransform transform = aes.CreateDecryptor(aes.Key, aes.IV))
+                {
+                    using (MemoryStream memoryStream = new MemoryStream())
+                    {
+                        using (CryptoStream destination = new CryptoStream(memoryStream, transform, CryptoStreamMode.Write))
+                        {
+                            using (MemoryStream memoryStream2 = new MemoryStream(array5))
+                            {
+                                memoryStream2.CopyTo(destination);
+                            }
+                        }
+
+                        return Encoding.UTF8.GetString(memoryStream.ToArray());
+                    }
+                }
+            }
+        }
+
+        #endregion
